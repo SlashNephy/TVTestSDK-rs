@@ -1,0 +1,32 @@
+name: latest
+
+on:
+  push:
+    paths-ignore:
+      - '*.md'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # https://zenn.dev/kt3k/articles/d557cc874961ab
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install Python
+        uses: actions/setup-python@v2
+      - name: Download git-restore-mtime
+        run: curl -O https://raw.githubusercontent.com/MestreLion/git-tools/main/git-restore-mtime
+      - name: Restore mtime
+        run: python ./git-restore-mtime
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
