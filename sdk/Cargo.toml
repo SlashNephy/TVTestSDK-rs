@@ -1,0 +1,20 @@
+[package]
+name = "plugin"
+authors = ["Nep <spica@starry.blue>"]
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies.windows]
+version = "0.30.0"
+features = [
+    "alloc",
+    "Data_Xml_Dom",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Threading",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Globalization",
+]

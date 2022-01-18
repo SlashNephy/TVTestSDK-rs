@@ -1,0 +1,10 @@
+[package]
+name = "TVTestSDK-rs"
+version = "0.0.1"
+authors = ["Nep <spica@starry.blue>"]
+edition = "2021"
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.59"

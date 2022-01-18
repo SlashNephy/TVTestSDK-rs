@@ -10,7 +10,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-2022
 
     steps:
       # https://zenn.dev/kt3k/articles/d557cc874961ab
@@ -24,9 +24,6 @@ jobs:
         run: curl -O https://raw.githubusercontent.com/MestreLion/git-tools/main/git-restore-mtime
       - name: Restore mtime
         run: python ./git-restore-mtime
-
-      - name: Install LLVM
-        run: sudo apt-get install -y llvm-dev libclang-dev clang
 
       - name: Build
         run: cargo build --verbose
