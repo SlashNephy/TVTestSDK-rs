@@ -1,8 +1,15 @@
 [package]
-name = "tvtest"
+name = "example"
 authors = ["Nep <spica@starry.blue>"]
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+tvtest = { path = "../sdk" }
+tvtest-macro = { path = "../sdk-macro" }
 
 [dependencies.windows]
 version = "0.30.0"

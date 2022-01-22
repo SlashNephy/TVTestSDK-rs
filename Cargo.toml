@@ -1,2 +1,2 @@
 [workspace]
-members = ["sdk"]
+members = ["sdk", "sdk-macro", "example"]
