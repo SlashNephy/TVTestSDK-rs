@@ -1,13 +1,14 @@
+use windows::Win32::Foundation::{LPARAM, LRESULT};
 use crate::plugin::PluginParam;
 
 /// メッセージ送信用コールバック関数
 #[cfg_attr(test, derive(Debug))]
-pub type MessageCallbackFunc = unsafe extern "stdcall" fn(
+pub type MessageCallbackFunc = unsafe extern "system" fn(
     param: *const PluginParam,
     message: Message,
-    param1: isize,
-    param2: isize,
-) -> isize;
+    param1: LPARAM,
+    param2: LPARAM,
+) -> LRESULT;
 
 /// メッセージ
 #[repr(u32)]
@@ -138,14 +139,14 @@ pub enum Message {
 
 impl PluginParam {
     #[inline]
-    pub fn send_message(&self, message: Message, param1: isize, param2: isize) -> isize {
+    pub fn send_message(&self, message: Message, param1: LPARAM, param2: LPARAM) -> LRESULT {
         unsafe {
             (self.callback)(self, message, param1, param2)
         }
     }
 
     #[inline]
-    pub fn send_message_bool(&self, message: Message, param1: isize, param2: isize) -> bool {
-        self.send_message(message, param1, param2) != 0
+    pub fn send_message_bool(&self, message: Message, param1: LPARAM, param2: LPARAM) -> bool {
+        self.send_message(message, param1, param2).0 != 0
     }
 }

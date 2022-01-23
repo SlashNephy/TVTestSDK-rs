@@ -7,7 +7,6 @@ name = "example"
 version = "0.1.0"
 dependencies = [
  "tvtest",
- "tvtest-macro",
  "windows",
 ]
 
@@ -16,13 +15,6 @@ name = "tvtest"
 version = "0.1.0"
 dependencies = [
  "windows",
-]
-
-[[package]]
-name = "tvtest-macro"
-version = "0.1.0"
-dependencies = [
- "tvtest",
 ]
 
 [[package]]

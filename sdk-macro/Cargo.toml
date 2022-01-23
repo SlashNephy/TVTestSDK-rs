@@ -1,8 +1,0 @@
-[package]
-name = "tvtest-macro"
-authors = ["Nep <spica@starry.blue>"]
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-tvtest = { path = "../sdk" }

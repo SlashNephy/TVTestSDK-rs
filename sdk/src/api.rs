@@ -1,18 +1,20 @@
+use std::cmp::min;
 use std::ffi::c_void;
-use std::mem::size_of;
-use std::ptr::copy;
+use std::ptr;
 use std::sync::Arc;
 
-use windows::Win32::Foundation::{HWND, PWSTR};
+use windows::Win32::Foundation::{HWND, LPARAM};
 use windows::Win32::Foundation::HINSTANCE;
-use windows::Win32::Globalization::lstrlenW;
 
 use crate::channel::ChannelInfo;
 use crate::event::EventCallbackFunc;
 use crate::log::LogType;
 use crate::message::Message;
 use crate::plugin::PluginParam;
+use crate::service::{GetServiceInfo, ServiceInfo};
+use crate::tuning_space::GetTuningSpaceNameInfo;
 use crate::version::Version;
+use crate::win32::{DecodeFromWideString, EncodeIntoWideString, make_long, make_lparam, WideString};
 
 #[cfg_attr(test, derive(Debug))]
 pub struct PluginApi {
@@ -27,23 +29,23 @@ impl PluginApi  {
 
     // プログラム(TVTest)のバージョンを取得する
     pub fn get_version(&self) -> Version {
-        let result = self.param.send_message(Message::GetVersion, 0, 0) as u32;
+        let result = self.param.send_message(Message::GetVersion, LPARAM(0), LPARAM(0)).0 as u32;
 
         result.into()
     }
 
     // 指定されたメッセージに対応しているか問い合わせる
     pub fn query_message(&self, message: Message) -> bool {
-        self.param.send_message_bool(Message::QueryMessage, message as isize, 0)
+        self.param.send_message_bool(Message::QueryMessage, LPARAM(message as isize), LPARAM(0))
     }
 
     // メモリ再確保
     // data が nullptr で新しい領域を確保
     // Size が0で領域を解放
     pub fn memory_realloc(&self, data: *mut c_void, size: isize) -> *mut c_void {
-        let result = self.param.send_message(Message::MemoryAlloc, data as isize, size);
+        let result = self.param.send_message(Message::MemoryAlloc, LPARAM(data as isize), LPARAM(size));
 
-        result as *mut c_void
+        result.0 as *mut c_void
     }
 
     // メモリ確保
@@ -59,33 +61,46 @@ impl PluginApi  {
     }
 
     // 文字列複製
-    pub unsafe fn string_duplicate(&self, string: PWSTR) -> PWSTR {
-        let size = (lstrlenW(string) + 1) as usize * size_of::<u16>();
-        let dup = self.memory_alloc(size as isize);
-        if !dup.is_null() {
-            let ptr = string.0 as *mut c_void;
-            copy(ptr, dup, size);
-        }
-
-        unimplemented!("TODO")
-        // return dup;
-    }
+    // pub unsafe fn string_duplicate(&self, string: PWSTR) -> PWSTR {
+    //     let size = (lstrlenW(string) + 1) as usize * size_of::<u16>();
+    //     let dup = self.memory_alloc(size as isize);
+    //     if !dup.is_null() {
+    //         let ptr = string.0 as *mut c_void;
+    //         copy(ptr, dup, size);
+    //     }
+    //
+    //     unimplemented!("TODO")
+    //     // return dup;
+    // }
 
     // イベントハンドル用コールバックの設定
     // pClientData はコールバックの呼び出し時に渡されます。
     // 一つのプラグインで設定できるコールバック関数は一つだけです。
     // Callback に nullptr を渡すと設定が解除されます。
-    pub fn set_event_callback(&self, callback: EventCallbackFunc, client_data: *mut c_void) -> bool {
-        self.param.send_message_bool(Message::SetEventCallback, callback as isize, client_data as isize)
+    pub fn set_event_callback(&self, callback: EventCallbackFunc) -> bool {
+        let ptr = callback as *const EventCallbackFunc;
+        let ptr2 = ptr::null::<c_void>();
+        self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr as isize), LPARAM(ptr2 as isize))
+    }
+    pub fn set_event_callback_with_client_data(&self, callback: EventCallbackFunc, client_data: *const c_void) -> bool {
+        let ptr = callback as *const EventCallbackFunc;
+        let ptr2 = client_data as *const c_void;
+        self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr as isize), LPARAM(ptr2 as isize))
+    }
+    pub fn unset_event_callback(&self) -> bool {
+        let ptr = ptr::null::<EventCallbackFunc>();
+        let ptr2 = ptr::null::<c_void>();
+        self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr as isize), LPARAM(ptr2 as isize))
     }
 
     // 現在のチャンネルの情報を取得する
     pub fn get_current_channel_info(&self) -> Option<ChannelInfo> {
         let info = ChannelInfo::default();
-        let ptr = &info as *const _;
+        let ptr = &info as *const ChannelInfo;
+        let result = self.param.send_message_bool(Message::GetCurrentChannelInfo, LPARAM(ptr as isize), LPARAM(0));
 
-        if self.param.send_message_bool(Message::GetCurrentChannelInfo, ptr as isize, 0) {
-            Some(info)
+        if result {
+            info.into()
         } else {
             None
         }
@@ -93,24 +108,131 @@ impl PluginApi  {
 
     // チャンネルを設定する
     // 機能が追加された MESSAGE_SELECTCHANNEL もあります。
-    pub fn set_channel<T: Into<Option<u16>>>(&self, space: i32, channel: i32, service_id: T) -> bool {
-        self.param.send_message_bool(Message::SetChannel, space as isize, channel as isize)
+    pub fn set_channel(&self, space: i32, channel: i32) -> bool {
+        self.param.send_message_bool(Message::SetChannel, LPARAM(space as isize), LPARAM(channel as isize))
+    }
+    pub fn set_channel_with_service_id(&self, space: i32, channel: i32, service_id: u16) -> bool {
+        let param = make_long(channel as u16, service_id);
+
+        self.param.send_message_bool(Message::SetChannel, LPARAM(space as isize), LPARAM(param as isize))
+    }
+
+    // 現在のサービス及びサービス数を取得する
+    // サービスのインデックスが返る。エラー時は-1が返ります。
+    // pNumServices が nullptr でない場合は、サービスの数が返されます。
+    pub fn get_service_index(&self) -> Option<i32> {
+        let ptr = std::ptr::null::<i32>();
+        let index = self.param.send_message(Message::GetService, LPARAM(ptr as isize), LPARAM(0)).0;
+
+        if index != -1 {
+            (index as i32).into()
+        } else {
+            None
+        }
+    }
+    pub fn get_service(&self) -> Option<GetServiceInfo> {
+        let num = 0;
+        let ptr = &num as *const i32;
+        let index = self.param.send_message(Message::GetService, LPARAM(ptr as isize), LPARAM(0)).0;
+
+        if index != -1 {
+            GetServiceInfo {
+                index: index as i32,
+                num_services: num,
+            }.into()
+        } else {
+            None
+        }
+    }
+
+    // サービスを設定する
+    // fByID=false の場合はインデックス、fByID=true の場合はサービスID
+    pub fn set_service_by_index(&self, index: i32) -> bool {
+        self.param.send_message_bool(Message::SetService, LPARAM(index as isize), LPARAM(false as isize))
+    }
+    pub fn set_service_by_id(&self, service_id: i32) -> bool {
+        self.param.send_message_bool(Message::SetService, LPARAM(service_id as isize), LPARAM(true as isize))
+    }
+
+    // チューニング空間名を取得する
+    // チューニング空間名の長さが返ります。Indexが範囲外の場合は0が返ります。
+    // pszName を nullptr で呼べば長さだけを取得できます。
+    // MaxLength には pszName の先に格納できる最大の要素数(終端の空文字を含む)を指定します。
+    pub fn get_tuning_space_name_length(&self, index: i32) -> Option<usize> {
+        let ptr = ptr::null::<u16>();
+        let param = make_lparam(index as u16,  0xFFFF);
+        let result = self.param.send_message(Message::GetTuningSpaceName, LPARAM(ptr as isize), param).0;
+
+        if result > 0 {
+            (result as usize).into()
+        } else {
+            None
+        }
+    }
+    pub fn get_tuning_space_name(&self, index: i32, max_length: u16) -> Option<GetTuningSpaceNameInfo> {
+        let vec: Vec<u16> = Vec::with_capacity(max_length as usize);
+        let ptr = vec.as_ptr();
+        let param = make_lparam(index as u16, min(max_length, 0xFFFF));
+        let result = self.param.send_message(Message::GetTuningSpaceName, LPARAM(ptr as isize), param).0;
+
+        if result > 0 {
+            GetTuningSpaceNameInfo {
+                length: result as usize,
+                name: vec.into_string(),
+            }.into()
+        } else {
+            None
+        }
+    }
+
+    // チャンネルの情報を取得する
+    // 事前に ChannelInfo の Size メンバを設定しておきます。
+    // szNetworkName, szTransportStreamName は MESSAGE_GETCURRENTCHANNEL でしか取得できません。
+    // NetworkID, TransportStreamID はチャンネルスキャンしていないと取得できません。
+    // 取得できなかった場合は0になります。
+    pub fn get_channel_info(&self, space: i32, index: i32) -> Option<ChannelInfo> {
+        let info = ChannelInfo::default();
+        let ptr = &info as *const ChannelInfo;
+        let result = self.param.send_message_bool(Message::GetChannelInfo, LPARAM(ptr as isize), make_lparam(space as u16, index as u16));
+
+        if result {
+            info.into()
+        } else {
+            None
+        }
+    }
+
+    // サービスの情報を取得する
+    // 現在のチャンネルのサービスの情報を取得します。
+    // 事前に ServiceInfo の Size メンバを設定しておきます。
+    pub fn get_service_info(&self, index: i32) -> Option<ServiceInfo> {
+        let info = ServiceInfo::default();
+        let ptr = &info as *const ServiceInfo;
+        let result = self.param.send_message_bool(Message::GetServiceInfo, LPARAM(index as isize), LPARAM(ptr as isize));
+
+        if result {
+            info.into()
+        } else {
+            None
+        }
     }
 
     // ログを記録する
     // 設定のログの項目に表示されます。
-    pub fn add_log(&self, text: PWSTR) -> bool {
-        let ptr = text.0 as *const u16;
+    pub fn add_log(&self, text: String) -> bool {
+        let encoded: WideString = text.into_wide_string();
+        let ptr = encoded.0.as_ptr();
 
-        self.param.send_message_bool(Message::AddLog, ptr as isize, 0)
+        self.param.send_message_bool(Message::AddLog, LPARAM(ptr as isize), LPARAM(0))
     }
-    pub fn add_log_with_type(&self, text: PWSTR, log_type: LogType) -> bool {
-        let ptr = text.0 as *const u16;
+    pub fn add_log_with_type(&self, text: String, log_type: LogType) -> bool {
+        let encoded: WideString = text.into_wide_string();
+        let ptr = encoded.0.as_ptr();
         let log_type = match log_type.into() {
             Some(t) => t as isize,
             None => 0
         };
 
-        self.param.send_message_bool(Message::AddLog, ptr as isize, log_type)
+        self.param.send_message_bool(Message::AddLog, LPARAM(ptr as isize), LPARAM(log_type))
     }
 }
