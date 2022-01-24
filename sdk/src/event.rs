@@ -2,7 +2,6 @@ use std::ffi::c_void;
 use windows::Win32::Foundation::{LPARAM, LRESULT};
 
 /// イベント用コールバック関数
-#[cfg_attr(test, derive(Debug))]
 pub type EventCallbackFunc = unsafe extern "system" fn(
     event: Event,
     param1: LPARAM,

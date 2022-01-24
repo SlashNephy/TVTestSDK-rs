@@ -14,9 +14,8 @@ use crate::plugin::PluginParam;
 use crate::service::{GetServiceInfo, ServiceInfo};
 use crate::tuning_space::GetTuningSpaceNameInfo;
 use crate::version::Version;
-use crate::win32::{DecodeFromWideString, EncodeIntoWideString, make_long, make_lparam, WideString};
+use crate::win32::{IntoRustString, IntoWideString, make_long, make_lparam};
 
-#[cfg_attr(test, derive(Debug))]
 pub struct PluginApi {
     pub dll: Arc<HINSTANCE>,
     pub param: Arc<PluginParam>,
@@ -178,7 +177,7 @@ impl PluginApi  {
         if result > 0 {
             GetTuningSpaceNameInfo {
                 length: result as usize,
-                name: vec.into_string(),
+                name: vec.into_wide_string().into_string(),
             }.into()
         } else {
             None
@@ -217,16 +216,48 @@ impl PluginApi  {
         }
     }
 
+    // BonDriverのファイル名を取得する
+    // 戻り値はファイル名の長さ(終端のNullを除く)が返ります。
+    // pszName を nullptr で呼べば長さだけを取得できます。
+    // 取得されるのは、ディレクトリを含まないファイル名のみか、相対パスの場合もあります。
+    // フルパスを取得したい場合は MsgGetDriverFullPathName を使用してください。
+    // pub fn get_driver_name_length(&self) -> Option<usize> {
+    //     let ptr = ptr::null::<u16>();
+    //     let param = make_lparam(index as u16,  0xFFFF);
+    //     let result = self.param.send_message(Message::GetTuningSpaceName, LPARAM(ptr as isize), param).0;
+    //
+    //     if result > 0 {
+    //         (result as usize).into()
+    //     } else {
+    //         None
+    //     }
+    // }
+    // pub fn get_driver_name_name(&self, index: i32, max_length: u16) -> Option<GetTuningSpaceNameInfo> {
+    //     let vec: Vec<u16> = Vec::with_capacity(max_length as usize);
+    //     let ptr = vec.as_ptr();
+    //     let param = make_lparam(index as u16, min(max_length, 0xFFFF));
+    //     let result = self.param.send_message(Message::GetTuningSpaceName, LPARAM(ptr as isize), param).0;
+    //
+    //     if result > 0 {
+    //         GetTuningSpaceNameInfo {
+    //             length: result as usize,
+    //             name: vec.into_string(),
+    //         }.into()
+    //     } else {
+    //         None
+    //     }
+    // }
+
     // ログを記録する
     // 設定のログの項目に表示されます。
     pub fn add_log(&self, text: String) -> bool {
-        let encoded: WideString = text.into_wide_string();
+        let encoded = text.into_wide_string();
         let ptr = encoded.0.as_ptr();
 
         self.param.send_message_bool(Message::AddLog, LPARAM(ptr as isize), LPARAM(0))
     }
     pub fn add_log_with_type(&self, text: String, log_type: LogType) -> bool {
-        let encoded: WideString = text.into_wide_string();
+        let encoded = text.into_wide_string();
         let ptr = encoded.0.as_ptr();
         let log_type = match log_type.into() {
             Some(t) => t as isize,

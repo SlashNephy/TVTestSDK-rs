@@ -2,7 +2,6 @@ use windows::Win32::Foundation::{LPARAM, LRESULT};
 use crate::plugin::PluginParam;
 
 /// メッセージ送信用コールバック関数
-#[cfg_attr(test, derive(Debug))]
 pub type MessageCallbackFunc = unsafe extern "system" fn(
     param: *const PluginParam,
     message: Message,

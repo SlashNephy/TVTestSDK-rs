@@ -4,10 +4,12 @@ authors = ["Nep <spica@starry.blue>"]
 version = "0.1.0"
 edition = "2021"
 
+[dependencies.enumflags2]
+version = "0.7"
+
 [dependencies.windows]
-version = "0.30.0"
+version = "0.30"
 features = [
     "alloc",
     "Win32_Foundation",
-    "Win32_Globalization",
 ]
