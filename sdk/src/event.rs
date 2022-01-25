@@ -1,12 +1,12 @@
-use std::ffi::c_void;
 use windows::Win32::Foundation::{LPARAM, LRESULT};
+use crate::ClientData;
 
 /// イベント用コールバック関数
 pub type EventCallbackFunc = unsafe extern "system" fn(
     event: Event,
     param1: LPARAM,
     param2: LPARAM,
-    client_data: *const c_void
+    client_data: ClientData
 ) -> LRESULT;
 
 /// イベント

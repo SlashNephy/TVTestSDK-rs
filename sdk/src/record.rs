@@ -1,6 +1,6 @@
 use std::mem::size_of;
-use enumflags2::{bitflags, BitFlag, BitFlags};
-use windows::Win32::Foundation::FILETIME;
+use enumflags2::{BitFlag, BitFlags};
+use windows::Win32::Foundation::{FILETIME, RECT};
 use crate::win32::WideStringPtr;
 
 /// 録画情報のマスク
@@ -121,6 +121,64 @@ impl Default for RecordInfo {
             }
         }
     }
+}
+
+/// 録画の状態
+#[repr(u32)]
+#[derive(UnsafeFromPrimitive)]
+pub enum RecordStatus {
+    /// 録画していない
+    NotRecording,
+    /// 録画中
+    Recording,
+    /// 録画一時停止中
+    Paused,
+}
+
+/// 録画ステータス情報
+#[repr(C)]
+pub struct RecordStatusInfo {
+    /// 構造体のサイズ
+    pub size: u32,
+    /// 状態
+    pub status: RecordStatus,
+    /// 録画開始時刻
+    /// ローカル時刻(RECORD_STATUS_FLAG_UTC が指定されていれば UTC)
+    pub start_time: FILETIME,
+    /// 録画時間(ms) 一時停止中を含まない
+    pub record_time: u32,
+    /// 一時停止時間(ms)
+    pub pause_time: u32,
+    /// 録画停止時間の指定方法
+    pub stop_time_spec: RecordStop,
+    pub stop_time: RecordStopTime,
+    /// ファイルパス
+    pub filename: WideStringPtr,
+    /// ファイルパスの最大長
+    pub max_filename: i32,
+}
+
+/// 録画ステータス取得フラグ
+#[repr(u32)]
+pub enum RecordStatusFlag {
+    /// UTC の時刻を取得
+    UTC = 0x00000001,	
+}
+
+/// 映像の情報
+pub struct VideoInfo {
+    /// 構造体のサイズ
+    pub size: u32,
+    /// 幅(ピクセル単位)
+    pub width: i32,
+    /// 高さ(ピクセル単位)
+    pub height: i32,
+    /// 水平アスペクト比
+    pub x_aspect: i32,
+    /// 垂直アスペクト比
+    pub y_aspect: i32,
+    /// ソースの表示範囲
+    pub source_rect: RECT,
 }
 
 #[repr(C)]

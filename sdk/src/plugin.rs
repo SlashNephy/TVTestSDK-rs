@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 use enumflags2::{bitflags, BitFlags};
 use windows::Win32::Foundation::HWND;
+use crate::ClientData;
 use crate::message::MessageCallbackFunc;
 use crate::win32::WideStringPtr;
 
@@ -48,6 +49,8 @@ pub struct PluginInfo
     pub description: WideStringPtr,
 }
 
+type InternalData = *mut c_void;
+
 /// プラグインパラメータ
 #[repr(C)]
 pub struct PluginParam
@@ -57,7 +60,7 @@ pub struct PluginParam
     /// メインウィンドウのハンドル
     pub hwnd_app: HWND,
     /// プラグイン側で好きに使えるデータ
-    pub client_data: *mut c_void,
+    pub client_data: ClientData,
     /// TVTest側で使用するデータ。アクセス禁止
-    internal_data: *mut c_void,
+    internal_data: InternalData,
 }

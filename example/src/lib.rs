@@ -1,4 +1,6 @@
-use enumflags2::BitFlag;
+use std::cell::Cell;
+use std::sync::atomic::{AtomicI32, Ordering};
+use tvtest::enumflags2::BitFlag;
 use tvtest::api::PluginApi;
 use tvtest::{export_plugin, TVTestEventHandler, TVTestPlugin};
 use tvtest::plugin::{PluginFlag, PluginInfo, PluginKind};
@@ -14,9 +16,10 @@ pub struct ExamplePlugin {
     api: PluginApi,
 
     /// 任意のフィールドを追加できます
-    foo: u32,
-    bar: String,
-    hoge: i32,
+    /// プラグイン構造体のインスタンスは例外なく常に immutable な参照で渡されるので
+    /// 安全に書き換えが行えるデータストアを検討する必要があります
+    is_ready: Cell<bool>,
+    counter: AtomicI32,
 }
 
 /// **必須**
@@ -29,9 +32,8 @@ impl TVTestPlugin for ExamplePlugin {
     fn new(api: PluginApi) -> Self {
         ExamplePlugin {
             api,
-            foo: 10,
-            bar: "".to_string(),
-            hoge: 334
+            is_ready: Cell::new(false),
+            counter: AtomicI32::default(),
         }
     }
 
@@ -63,6 +65,8 @@ impl TVTestPlugin for ExamplePlugin {
         // `self.api` には TVTest の API を呼び出すためのメソッドが多数実装されています
         self.api.add_log("プラグインを読み込みました！".to_string());
 
+        self.is_ready.set(true);
+
         true
     }
 
@@ -83,13 +87,19 @@ impl TVTestPlugin for ExamplePlugin {
 impl TVTestEventHandler for ExamplePlugin {
     /// チャンネルが変更されたときに呼び出されます
     fn on_channel_change(&self) -> bool {
+        self.counter.fetch_add(1, Ordering::Acquire);
+
         // 現在のチャンネル情報を取得します
         // API の呼び出しは失敗する可能性があるため、`Option<T>` 型が返されます
         if let Some(channel) = self.api.get_current_channel_info() {
             self.api.add_log(
                 // 固定長のワイド文字列 (`FixedWideString` 構造体) は `.into_string()` 関数で
                 // Rust で扱える文字列に変換できます
-                format!("Current Service = {:?}", channel.channel_name.into_string())
+                format!(
+                    "n = {}, Current Service = {:?}",
+                    self.counter.load(Ordering::Acquire),
+                    channel.channel_name.into_string(),
+                )
             );
         }
 

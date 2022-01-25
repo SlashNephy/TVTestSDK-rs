@@ -7,6 +7,7 @@ use windows::Win32::Foundation::{HWND, LPARAM};
 use windows::Win32::Foundation::HINSTANCE;
 
 use crate::channel::ChannelInfo;
+use crate::ClientData;
 use crate::event::EventCallbackFunc;
 use crate::log::LogType;
 use crate::message::Message;
@@ -81,9 +82,9 @@ impl PluginApi  {
         let ptr2 = ptr::null::<c_void>();
         self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr as isize), LPARAM(ptr2 as isize))
     }
-    pub fn set_event_callback_with_client_data(&self, callback: EventCallbackFunc, client_data: *const c_void) -> bool {
+    pub fn set_event_callback_with_client_data(&self, callback: EventCallbackFunc, client_data: ClientData) -> bool {
         let ptr = callback as *const EventCallbackFunc;
-        let ptr2 = client_data as *const c_void;
+        let ptr2 = client_data as ClientData;
         self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr as isize), LPARAM(ptr2 as isize))
     }
     pub fn unset_event_callback(&self) -> bool {

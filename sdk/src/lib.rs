@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use windows::Win32::Foundation::HWND;
 use crate::api::PluginApi;
 use crate::command::DrawCommandIconInfo;
@@ -5,8 +6,9 @@ use crate::filter_graph::FilterGraphInfo;
 use crate::panel::PanelItemEventInfo;
 use crate::plugin::PluginInfo;
 use crate::program_guide::{ProgramGuideCommandParam, ProgramGuideInitializeMenuInfo, ProgramGuideProgramDrawBackgroundInfo, ProgramGuideProgramInfo, ProgramGuideProgramInitializeMenuInfo};
-use crate::record::StartRecordInfo;
-use crate::status::{StatusItemDrawInfo, StatusItemEventInfo, StatusItemMouseEventInfo};
+use crate::record::{RecordStatus, StartRecordInfo};
+use crate::status_item::{StatusItemDrawInfo, StatusItemEventInfo, StatusItemMouseEventInfo};
+use crate::stereo_mode::StereoMode;
 use crate::variable::GetVariableInfo;
 use crate::version::{DEFAULT_API_VERSION, Version};
 use crate::win32::WideStringPtr;
@@ -19,18 +21,35 @@ pub mod log;
 pub mod record;
 pub mod program_guide;
 pub mod filter_graph;
-pub mod status;
+pub mod status_item;
 pub mod panel;
 pub mod command;
 pub mod variable;
 pub mod service;
 pub mod tuning_space;
+pub mod pan_scan;
+pub mod status;
+pub mod stereo_mode;
+pub mod reset;
+pub mod close;
+pub mod stream;
+pub mod arib_string;
+pub mod program;
 
 pub mod api;
 pub mod plugin;
 pub mod interface;
+#[macro_use]
 pub mod export;
 pub mod win32;
+
+#[macro_use]
+pub extern crate enumflags2;
+#[macro_use]
+pub extern crate num_enum;
+pub extern crate windows;
+
+pub type ClientData = *mut c_void;
 
 /// すべての TVTest プラグイン構造体が実装すべき trait
 pub trait TVTestPlugin: TVTestEventHandler {
@@ -46,7 +65,7 @@ pub trait TVTestPlugin: TVTestEventHandler {
 pub trait TVTestEventHandler {
     /// 有効状態が変化した
     /// 変化を拒否する場合 false を返します
-    fn on_plugin_enable(&self, enable: bool) -> bool { false }
+    fn on_plugin_enable(&self, is_enable: bool) -> bool { false }
     /// 設定を行う
     /// プラグインのフラグに PLUGIN_FLAG_HASSETTINGS が設定されている場合に呼ばれます
     /// 設定が OK されたら true を返します
@@ -60,20 +79,20 @@ pub trait TVTestEventHandler {
     /// サービスの構成が変化した
     fn on_service_update(&self) -> bool { false }
     /// 録画状態が変化した
-    fn on_record_status_change(&self, status: i32) -> bool { false }
+    fn on_record_status_change(&self, status: RecordStatus) -> bool { false }
     /// 全画面表示状態が変化した
-    fn on_fullscreen_change(&self, fullscreen: bool) -> bool { false }
+    fn on_fullscreen_change(&self, is_fullscreen: bool) -> bool { false }
     /// プレビュー表示状態が変化した
-    fn on_preview_change(&self, preview: bool) -> bool { false }
+    fn on_preview_change(&self, is_preview: bool) -> bool { false }
     /// 音量が変化した
-    fn on_volume_change(&self, volume: i32, mute: bool) -> bool { false }
+    fn on_volume_change(&self, volume: i32, is_mute: bool) -> bool { false }
     /// ステレオモードが変化した
-    fn on_stereo_mode_change(&self, stereo_mode: i32) -> bool { false }
+    fn on_stereo_mode_change(&self, stereo_mode: StereoMode) -> bool { false }
     /// 色の設定が変化した
     fn on_color_change(&self) -> bool { false }
 
     /// 待機状態が変化した
-    fn on_standby(&self, standby: bool) -> bool { false }
+    fn on_standby(&self, is_standby: bool) -> bool { false }
     /// コマンドが選択された
     fn on_command(&self, id: i32) -> bool { false }
 
