@@ -15,7 +15,7 @@ jobs:
     steps:
       # https://zenn.dev/kt3k/articles/d557cc874961ab
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Install Python
