@@ -10,16 +10,21 @@ Win32 なオブジェクトは `windows-rs` クレートを参照します。
 
 - `sdk/`  
   ヘッダーファイルを移植中です。
-- `sdk-macro/`
-  Cの関数エクスポート用のマクロ定義があります。
-- `example/`
-  サンプルプラグイン実装です。
+- `example-sdk/`
+  サンプル実装のプラグインです。
+- `bondriver/`  
+  ヘッダーファイルを移植中です。
+- `example-bondriver/`
+  サンプル実装の BonDriver です。
 - `bindings/`  
   rust-bindgen で作成した試作品 (動きません...)
 
 ## 現状
 
 - クラスによるプラグインの記述に対応 (example 以下)
+
+- \*(const|mut)
+- i32 <-> u32
 
 - Rust の命名規則に従います  
   関数名・イベント名などが変更されています

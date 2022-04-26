@@ -1,21 +1,22 @@
 use std::cmp::min;
 use std::ffi::c_void;
 use std::ptr;
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 use windows::Win32::Foundation::{HWND, LPARAM};
 use windows::Win32::Foundation::HINSTANCE;
 
 use crate::channel::ChannelInfo;
-use crate::ClientData;
+use crate::{ClientData};
 use crate::event::EventCallbackFunc;
-use crate::log::LogType;
+use crate::log::LogKind;
 use crate::message::Message;
 use crate::plugin::PluginParam;
 use crate::service::{GetServiceInfo, ServiceInfo};
 use crate::tuning_space::GetTuningSpaceNameInfo;
 use crate::version::Version;
-use crate::win32::{IntoRustString, IntoWideString, make_long, make_lparam};
+use crate::win32::{IntoRustString, IntoWideString, make_long, make_lparam, UnsafePtr};
 
 pub struct PluginApi {
     pub dll: Arc<HINSTANCE>,
@@ -42,21 +43,23 @@ impl PluginApi  {
     // メモリ再確保
     // data が nullptr で新しい領域を確保
     // Size が0で領域を解放
-    pub fn memory_realloc(&self, data: *mut c_void, size: isize) -> *mut c_void {
-        let result = self.param.send_message(Message::MemoryAlloc, LPARAM(data as isize), LPARAM(size));
+    pub fn memory_realloc(&self, data: UnsafePtr<c_void>, size: isize) -> UnsafePtr<c_void> {
+        let param1 = match data {
+            Some(p) => p.as_ptr() as isize,
+            None => 0,
+        };
+        let result = self.param.send_message(Message::MemoryAlloc, LPARAM(param1), LPARAM(size));
 
-        result.0 as *mut c_void
+        NonNull::new(result.0 as *mut c_void)
     }
 
     // メモリ確保
-    pub fn memory_alloc(&self, size: isize) -> *mut c_void {
-        let ptr = std::ptr::null_mut::<c_void>();
-
-        self.memory_realloc(ptr, size)
+    pub fn memory_alloc(&self, size: isize) -> UnsafePtr<c_void> {
+        self.memory_realloc(None, size)
     }
 
     // メモリ開放
-    pub fn memory_free(&self, data: *mut c_void) {
+    pub fn memory_free(&self, data: UnsafePtr<c_void>) {
         self.memory_realloc(data, 0);
     }
 
@@ -77,15 +80,15 @@ impl PluginApi  {
     // pClientData はコールバックの呼び出し時に渡されます。
     // 一つのプラグインで設定できるコールバック関数は一つだけです。
     // Callback に nullptr を渡すと設定が解除されます。
-    pub fn set_event_callback(&self, callback: EventCallbackFunc) -> bool {
-        let ptr = callback as *const EventCallbackFunc;
+    pub unsafe fn set_event_callback(&self, callback: EventCallbackFunc) -> bool {
+        let ptr = NonNull::new_unchecked(callback as *mut EventCallbackFunc);
         let ptr2 = ptr::null::<c_void>();
-        self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr as isize), LPARAM(ptr2 as isize))
+        self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr.as_ptr() as isize), LPARAM(ptr2 as isize))
     }
-    pub fn set_event_callback_with_client_data(&self, callback: EventCallbackFunc, client_data: ClientData) -> bool {
-        let ptr = callback as *const EventCallbackFunc;
-        let ptr2 = client_data as ClientData;
-        self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr as isize), LPARAM(ptr2 as isize))
+    pub unsafe fn set_event_callback_with_client_data(&self, callback: EventCallbackFunc, client_data: &ClientData) -> bool {
+        let ptr = NonNull::new_unchecked(callback as *mut EventCallbackFunc);
+        let ptr2 = NonNull::from(client_data);
+        self.param.send_message_bool(Message::SetEventCallback, LPARAM(ptr.as_ptr() as isize), LPARAM(ptr2.as_ptr() as isize))
     }
     pub fn unset_event_callback(&self) -> bool {
         let ptr = ptr::null::<EventCallbackFunc>();
@@ -132,8 +135,8 @@ impl PluginApi  {
     }
     pub fn get_service(&self) -> Option<GetServiceInfo> {
         let num = 0;
-        let ptr = &num as *const i32;
-        let index = self.param.send_message(Message::GetService, LPARAM(ptr as isize), LPARAM(0)).0;
+        let ptr = NonNull::from(&num);
+        let index = self.param.send_message(Message::GetService, LPARAM(ptr.as_ptr() as isize), LPARAM(0)).0;
 
         if index != -1 {
             GetServiceInfo {
@@ -207,8 +210,8 @@ impl PluginApi  {
     // 事前に ServiceInfo の Size メンバを設定しておきます。
     pub fn get_service_info(&self, index: i32) -> Option<ServiceInfo> {
         let info = ServiceInfo::default();
-        let ptr = &info as *const ServiceInfo;
-        let result = self.param.send_message_bool(Message::GetServiceInfo, LPARAM(index as isize), LPARAM(ptr as isize));
+        let ptr = NonNull::from(&info);
+        let result = self.param.send_message_bool(Message::GetServiceInfo, LPARAM(index as isize), LPARAM(ptr.as_ptr() as isize));
 
         if result {
             info.into()
@@ -257,13 +260,10 @@ impl PluginApi  {
 
         self.param.send_message_bool(Message::AddLog, LPARAM(ptr as isize), LPARAM(0))
     }
-    pub fn add_log_with_type(&self, text: String, log_type: LogType) -> bool {
+    pub fn add_log_with_kind(&self, text: String, kind: LogKind) -> bool {
         let encoded = text.into_wide_string();
         let ptr = encoded.0.as_ptr();
-        let log_type = match log_type.into() {
-            Some(t) => t as isize,
-            None => 0
-        };
+        let log_type = kind as isize;
 
         self.param.send_message_bool(Message::AddLog, LPARAM(ptr as isize), LPARAM(log_type))
     }

@@ -11,30 +11,37 @@ use crate::status_item::{StatusItemDrawInfo, StatusItemEventInfo, StatusItemMous
 use crate::stereo_mode::StereoMode;
 use crate::variable::GetVariableInfo;
 use crate::version::{DEFAULT_API_VERSION, Version};
-use crate::win32::WideStringPtr;
+use crate::win32::{UnsafePtr, WideStringPtr};
 
-pub mod version;
-pub mod message;
-pub mod event;
-pub mod channel;
-pub mod log;
-pub mod record;
-pub mod program_guide;
-pub mod filter_graph;
-pub mod status_item;
-pub mod panel;
-pub mod command;
-pub mod variable;
-pub mod service;
-pub mod tuning_space;
-pub mod pan_scan;
-pub mod status;
-pub mod stereo_mode;
-pub mod reset;
-pub mod close;
-pub mod stream;
 pub mod arib_string;
+pub mod channel;
+pub mod close;
+pub mod command;
+pub mod controller;
+pub mod epg;
+pub mod event;
+pub mod filter_graph;
+pub mod host;
+pub mod log;
+pub mod message;
+pub mod pan_scan;
+pub mod panel;
 pub mod program;
+pub mod program_guide;
+pub mod record;
+pub mod reset;
+pub mod service;
+pub mod setting;
+pub mod silent_mode;
+pub mod status;
+pub mod status_item;
+pub mod stereo_mode;
+pub mod stream;
+pub mod style;
+pub mod theme;
+pub mod tuning_space;
+pub mod variable;
+pub mod version;
 
 pub mod api;
 pub mod plugin;
@@ -49,7 +56,7 @@ pub extern crate enumflags2;
 pub extern crate num_enum;
 pub extern crate windows;
 
-pub type ClientData = *mut c_void;
+pub type ClientData = UnsafePtr<c_void>;
 
 /// すべての TVTest プラグイン構造体が実装すべき trait
 pub trait TVTestPlugin: TVTestEventHandler {

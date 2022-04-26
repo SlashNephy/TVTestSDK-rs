@@ -96,7 +96,7 @@ impl TVTestEventHandler for ExamplePlugin {
                 // 固定長のワイド文字列 (`FixedWideString` 構造体) は `.into_string()` 関数で
                 // Rust で扱える文字列に変換できます
                 format!(
-                    "n = {}, Current Service = {:?}",
+                    "Counter = {}, Current Service = {:?}",
                     self.counter.load(Ordering::Acquire),
                     channel.channel_name.into_string(),
                 )
@@ -121,5 +121,5 @@ impl TVTestEventHandler for ExamplePlugin {
 
 // **必須**
 // C言語形式の関数をエクスポートします
-// 生成された target/example.dll の拡張子を .tvtp に変更すると TVTest でロードできるようになります
+// 生成された target/example-sdk.dll の拡張子を .tvtp に変更すると TVTest でロードできるようになります
 export_plugin!(ExamplePlugin);

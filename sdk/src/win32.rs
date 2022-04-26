@@ -1,21 +1,25 @@
 use std::ffi::{OsStr, OsString};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
-use std::{ptr, slice};
+use std::slice;
+use std::ptr::NonNull;
 use windows::Win32::Foundation::LPARAM;
+
+pub type UnsafePtr<T> = Option<NonNull<T>>;
 
 /// NULL 終端なワイド文字列
 #[cfg_attr(test, derive(Debug))]
+#[repr(transparent)]
 pub struct WideString(pub Vec<u16>);
 
 impl WideString {
     /// 生ポインタに変換します
-    pub fn as_ptr(&self) -> *const u16 {
-        self.0.as_ptr()
+    pub fn as_ptr(&self) -> UnsafePtr<u16> {
+        NonNull::new(self.0.as_ptr() as *mut u16)
     }
 
     /// mutable な生ポインタに変換します
-    pub fn as_mut_ptr(&mut self) -> *mut u16 {
-        self.0.as_mut_ptr()
+    pub fn as_mut_ptr(&mut self) -> UnsafePtr<u16> {
+        NonNull::new(self.0.as_mut_ptr())
     }
 
     /// WideStringPtr に変換します
@@ -102,6 +106,7 @@ impl IntoRustString for Vec<u16> {
 
 /// 固定長な NULL 終端ワイド文字列
 #[cfg_attr(test, derive(Debug))]
+#[repr(transparent)]
 pub struct FixedWideString<const N: usize>(pub [u16; N]);
 
 impl<const N: usize> FixedWideString<N> {
@@ -128,25 +133,27 @@ impl<const N: usize> Default for FixedWideString<N> {
 }
 
 /// NULL 終端なワイド文字列ポインタ
+#[derive(Copy, Clone)]
 #[cfg_attr(test, derive(Debug))]
-pub struct WideStringPtr(pub *const u16);
+#[repr(transparent)]
+pub struct WideStringPtr(pub UnsafePtr<u16>);
 
 impl WideStringPtr {
     /// ぬるぽかどうか確認します
     pub fn is_null(&self) -> bool {
         let ptr = self.0;
 
-        ptr.is_null()
+        ptr.is_none()
     }
 
     /// 文字列の長さを返します
     pub unsafe fn get_length(&self) -> Option<usize> {
         let ptr = self.0;
-        if self.is_null() {
-            return None;
+        if let Some(p) = ptr {
+            (0..isize::MAX).position(|i| *p.as_ptr().offset(i) == 0).unwrap().into()
+        } else {
+            None
         }
-
-        (0..isize::MAX).position(|i| *ptr.offset(i) == 0).unwrap().into()
     }
 
     /// 文字列のスライスを取得します
@@ -154,7 +161,11 @@ impl WideStringPtr {
         let ptr = self.0;
         let len = self.get_length()?;
 
-        slice::from_raw_parts(ptr, len).into()
+        if let Some(p) = ptr {
+            slice::from_raw_parts(p.as_ptr(), len).into()
+        } else {
+            None
+        }
     }
 
     /// 非ポインターな WideString に変換します
@@ -167,7 +178,7 @@ impl WideStringPtr {
 
 impl Default for WideStringPtr {
     fn default() -> Self {
-        WideStringPtr(ptr::null())
+        WideStringPtr(None)
     }
 }
 

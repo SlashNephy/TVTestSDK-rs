@@ -1,3 +1,4 @@
+use std::ptr::NonNull;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT};
 use crate::{DrawCommandIconInfo, FilterGraphInfo, GetVariableInfo, PanelItemEventInfo, ProgramGuideCommandParam, ProgramGuideInitializeMenuInfo, ProgramGuideProgramDrawBackgroundInfo, ProgramGuideProgramInfo, ProgramGuideProgramInitializeMenuInfo, RecordStatus, StartRecordInfo, StatusItemDrawInfo, StatusItemEventInfo, StatusItemMouseEventInfo, StereoMode, TVTestEventHandler, WideStringPtr};
 use crate::event::Event;
@@ -172,7 +173,7 @@ pub fn handle_event<T: TVTestEventHandler>(
         Event::StandBy => handler.on_standby(param1 != 0) as isize,
         Event::Command => handler.on_command(param1 as i32) as isize,
         Event::Execute => {
-            let ptr = WideStringPtr(param1 as *mut u16);
+            let ptr = WideStringPtr(NonNull::new(param1 as *mut u16));
             handler.on_execute(ptr) as isize
         },
         Event::Reset => handler.on_reset() as isize,
@@ -186,7 +187,7 @@ pub fn handle_event<T: TVTestEventHandler>(
             handler.on_start_record(info) as isize
         },
         Event::RelayRecord => {
-            let ptr = WideStringPtr(param1 as *mut u16);
+            let ptr = WideStringPtr(NonNull::new(param1 as *mut u16));
             handler.on_relay_record(ptr) as isize
         },
         Event::ControllerFocus => handler.on_controller_focus(HWND(param1)) as isize,

@@ -1,2 +1,2 @@
 [workspace]
-members = ["sdk", "example"]
+members = ["sdk", "example-sdk", "bondriver", "example-bondriver"]

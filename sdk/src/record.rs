@@ -181,6 +181,48 @@ pub struct VideoInfo {
     pub source_rect: RECT,
 }
 
+/// 録画のクライアント
+#[repr(u32)]
+pub enum RecordClient {
+    /// ユーザーの操作
+    User,
+    /// コマンドラインでの指定
+    CommandLine,
+    /// プラグインからの指定
+    Plugin,
+}
+
+/// 録画開始情報で変更した項目
+#[bitflags]
+#[derive(Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum StartRecordModified {
+    /// ファイル名
+    Filename = 0x00000001,
+}
+
+/// 録画開始情報
+/// EVENT_STARTRECORD で渡されます。
 #[repr(C)]
-#[cfg_attr(test, derive(Debug))]
-pub struct StartRecordInfo;
+pub struct StartRecordInfo {
+    /// 構造体のサイズ
+    pub size: u32,
+    /// フラグ(現在未使用)
+    pub flags: u32,
+    /// 変更した項目
+    pub modified: BitFlags<StartRecordModified>,
+    /// 録画のクライアント
+    pub client: RecordClient,
+    /// ファイル名
+    pub filename: WideStringPtr,
+    /// ファイル名の最大長
+    pub max_filename: u32,
+    /// 開始時間の指定方法
+    pub start_time_spec: RecordStart,
+    /// 指定された開始時刻(ローカル時刻)
+    /// StartTimeSpec!=RECORD_START_NOTSPECIFIED の場合のみ有効
+    pub start_time: FILETIME,
+    /// 停止時間の指定方法
+    pub stop_time_spec: RecordStop,
+    pub stop_time: RecordStopTime,
+}

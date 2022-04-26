@@ -1,8 +1,9 @@
 use enumflags2::{bitflags, BitFlags};
 use crate::ClientData;
+use crate::win32::UnsafePtr;
 
 type StreamCallbackFunc = unsafe extern "system" fn(
-    data: *const u8,
+    data: UnsafePtr<u8>,
     client_data: ClientData
 ) -> bool;
 
