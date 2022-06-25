@@ -20,6 +20,10 @@ jobs:
           fetch-depth: 0
       - name: Install Python
         uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+          architecture: 'x64'
+        
       - name: Download git-restore-mtime
         run: curl -O https://raw.githubusercontent.com/MestreLion/git-tools/main/git-restore-mtime
       - name: Restore mtime
